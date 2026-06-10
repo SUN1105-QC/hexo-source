@@ -59,12 +59,15 @@
   // 渲染预览（含 Mermaid 支持）
   const renderPreview = async (content) => {
     const trimmed = content.trim();
-    // 检测是否为完整 HTML 文档
-    const isFullHtml = trimmed.match(/^\s*<!DOCTYPE/i) || trimmed.match(/^\s*<html/i);
+    // 1. 识别是否为完整 HTML 文档 (包含 <!DOCTYPE 或 <html)
+    const isFullHtml = /^\s*<!DOCTYPE/i.test(trimmed) || /^\s*<html/i.test(trimmed);
+    
+    // 2. 识别是否包含 HTML 标签
+    const hasHtmlTags = /<[a-z][\s\S]*>/i.test(trimmed);
 
     if (isFullHtml) {
-        // 使用 iframe 渲染完整 HTML
-        previewDiv.innerHTML = '<iframe id="previewFrame" style="width:100%; height:500px; border:1px solid #eee;"></iframe>';
+        // 使用 iframe 渲染完整 HTML，确保样式隔离
+        previewDiv.innerHTML = '<iframe id="previewFrame" style="width:100%; height:500px; border:1px solid #eee; background:#fff;"></iframe>';
         const frame = document.getElementById('previewFrame');
         if (frame) {
             const doc = frame.contentDocument || frame.contentWindow.document;
@@ -75,9 +78,11 @@
         return;
     }
 
-    // Markdown 渲染
+    // 3. 处理混合内容 (Markdown + HTML) 或 纯文本
+    // marked.parse 默认支持嵌入式 HTML
     previewDiv.innerHTML = marked.parse(content);
 
+    // 4. 处理 Mermaid 图表
     if (window.mermaid) {
       const mermaidBlocks = previewDiv.querySelectorAll('code.language-mermaid');
       if (mermaidBlocks.length > 0) {
@@ -353,8 +358,8 @@
         const data = await res.json();
         
         if (res.ok) {
-            alert("保存成功！即将刷新...");
-            location.reload();
+            alert("保存成功！即将跳转到主页并刷新...");
+            window.location.href = '/'; 
         } else {
             alert("保存失败: " + (data.error || JSON.stringify(data)));
         }

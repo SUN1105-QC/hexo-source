@@ -46,7 +46,15 @@
 
   <!-- 文章正文内容 -->
   <div class="post-content">
-    <% if (isFullHtml) { %>
+    <% 
+      // 增强版内容识别逻辑
+      const trimmed = rawBody.trim();
+      const hasHtmlTags = /<[a-z][\s\S]*>/i.test(trimmed);
+      const hasDoctype = /^\s*<!DOCTYPE/i.test(trimmed) || /^\s*<html/i.test(trimmed);
+      
+      // 如果包含完整 HTML 结构，使用 iframe 隔离渲染
+      if (hasDoctype) { 
+    %>
       <iframe id="post-content-iframe" style="width:100%; height:800px; border:1px solid #eee; background: #fff;"></iframe>
       <script>
         (function() {
@@ -66,8 +74,14 @@
           } catch(e) { console.error("Iframe load error", e); }
         })();
       </script>
-    <% } else { %>
+    <% } else if (hasHtmlTags) { %>
+      <!-- 包含 HTML 标签但非完整文档：直接渲染并支持混合 Markdown -->
       <%- page.content %>
+    <% } else { %>
+      <!-- 普通文本或纯 Markdown -->
+      <div class="pure-text-content">
+        <%- page.content %>
+      </div>
     <% } %>
   </div>
 </article>

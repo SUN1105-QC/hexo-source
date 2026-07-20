@@ -102,7 +102,42 @@ hexo.extend.filter.register('server_middleware', function(app) {
     app.use('/api/edit-note', handleSave);
     app.use('/api/new-note', handleSave);
 
-    // 4. 路由：GET /api/list-posts?path=...
+    // 4. 路由：POST /api/delete-note
+    // 删除本地文章文件
+    app.use('/api/delete-note', (req, res) => {
+        if (req.method !== 'POST') {
+            res.statusCode = 405;
+            return res.end();
+        }
+
+        const { path: filePath } = req.body || {};
+
+        if (!filePath) {
+            res.statusCode = 400;
+            return res.end(JSON.stringify({ error: 'Missing path' }));
+        }
+
+        const fullPath = path.join(hexo.base_dir, filePath);
+
+        if (!fs.existsSync(fullPath)) {
+            res.statusCode = 404;
+            return res.end(JSON.stringify({ error: 'File not found: ' + filePath }));
+        }
+
+        try {
+            fs.unlinkSync(fullPath);
+            console.log(`[Local API] Deleted: ${filePath}`);
+
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ success: true, message: 'Local delete successful' }));
+        } catch (e) {
+            console.error('[Local API] Delete Error:', e);
+            res.statusCode = 500;
+            res.end(JSON.stringify({ error: e.message }));
+        }
+    });
+
+    // 5. 路由：GET /api/list-posts?path=...
     // 模拟 GitHub List Contents API
     app.use('/api/list-posts', (req, res) => {
         const url = new URL(req.url, `http://${req.headers.host}`);

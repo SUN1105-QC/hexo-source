@@ -23,6 +23,7 @@
     <!-- 保存/取消按钮 -->
     <div style="margin-top:10px; display:flex; gap:10px;">
       <button id="saveNoteBtn" style="flex:1; padding:10px; background:#28a745; color:#fff; border:none; border-radius:5px; cursor:pointer;">💾 保存</button>
+      <button id="deleteNoteBtn" style="flex:1; padding:10px; background:#ff9800; color:#fff; border:none; border-radius:5px; cursor:pointer; display:none;">🗑️ 删除</button>
       <button id="cancelEditBtn" style="flex:1; padding:10px; background:#dc3545; color:#fff; border:none; border-radius:5px; cursor:pointer;">❌ 取消</button>
     </div>
 
@@ -53,8 +54,13 @@
   const noteTags = document.getElementById('noteTags');
   const noteContent = document.getElementById('noteContent');
   const saveNoteBtn = document.getElementById('saveNoteBtn');
+  const deleteNoteBtn = document.getElementById('deleteNoteBtn');
   const cancelEditBtn = document.getElementById('cancelEditBtn');
   const previewDiv = document.getElementById('preview');
+
+  if (!isLocal && deleteNoteBtn) {
+    deleteNoteBtn.remove();
+  }
 
   // 渲染预览（含 Mermaid 支持）
   const renderPreview = async (content) => {
@@ -154,12 +160,18 @@
         noteTags.value = "";
         noteContent.value = "";
         previewDiv.innerHTML = "";
+        if (deleteNoteBtn) {
+          deleteNoteBtn.style.display = "none";
+        }
         document.getElementById('editorTitle').innerText = "新建文章";
         return;
     }
 
     // 编辑模式
     document.getElementById('editorTitle').innerText = "编辑文章";
+    if (deleteNoteBtn) {
+      deleteNoteBtn.style.display = isLocal ? "block" : "none";
+    }
     noteTitle.value = "加载中...";
     noteFilename.value = file.path || ""; // 填充文件路径
     noteContent.value = "加载中...";
@@ -371,5 +383,60 @@
         saveNoteBtn.innerText = "💾 保存";
     }
   };
+
+  if (isLocal && deleteNoteBtn) {
+    // 删除
+    deleteNoteBtn.onclick = async () => {
+      if (!editingNote || !editingNote.path) {
+        alert("当前文章还未保存，无法删除");
+        return;
+      }
+
+      const filepath = (noteFilename.value.trim() || editingNote.path).replace(/\\/g, '/');
+      const confirmDelete = window.confirm(`确认删除文章吗？\n\n${filepath}\n\n删除后无法恢复。`);
+      if (!confirmDelete) {
+        return;
+      }
+
+      deleteNoteBtn.disabled = true;
+      deleteNoteBtn.innerText = "删除中...";
+      saveNoteBtn.disabled = true;
+
+      try {
+        const res = await fetch('/api/delete-note', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            path: editingNote.path,
+            sha: editingNote.sha,
+            message: `Delete ${editingNote.path}`
+          })
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          alert("删除成功！");
+          editorModal.style.display = "none";
+          editingNote = null;
+          if (typeof window.loadNotes === 'function') {
+            await window.loadNotes();
+          }
+          window.location.href = '/';
+        } else {
+          alert("删除失败: " + (data.error || JSON.stringify(data)));
+        }
+      } catch (e) {
+        console.error(e);
+        alert("请求失败: " + e.message);
+      } finally {
+        deleteNoteBtn.disabled = false;
+        deleteNoteBtn.innerText = "🗑️ 删除";
+        saveNoteBtn.disabled = false;
+      }
+    };
+  }
 })();
 </script>

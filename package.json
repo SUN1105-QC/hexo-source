@@ -11,7 +11,7 @@
     "debug:generate": "node --inspect-brk node_modules/hexo/bin/hexo generate --debug"
   },
   "hexo": {
-    "version": "8.1.2"
+    "version": "8.1.1"
   },
   "type": "module",
   "dependencies": {
